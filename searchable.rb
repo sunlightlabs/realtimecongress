@@ -51,11 +51,6 @@ module Searchable
       end
     end
 
-    # citation parameter dynamically inserts filter on citation field
-    if params[:citation]
-      fields['citation_ids'] = params[:citation]
-    end
-    
     return nil unless fields.any?
     subfilters = fields.map do |field, value| 
       valid_operators = [nil, "gt", "gte", "lt", "lte"]
@@ -72,12 +67,7 @@ module Searchable
 
       parsed = value_for value, type
 
-      # handle citations specially
-      if field == 'citation_ids'
-        citation_filter_for field, value
-      else
-        subfilter_for field, parsed, operator
-      end
+      subfilter_for field, parsed, operator
     end.compact
 
     return nil unless subfilters.any?
@@ -96,21 +86,6 @@ module Searchable
     end
   end
 
-  # the citation subfilter is itself an 'and' filter on a set of term subfilters
-  def self.citation_filter_for(field, value)
-    citation_ids = value.split "|"
-    
-    subfilters = citation_ids.map do |citation_id|
-      subfilter_for field, citation_id
-    end
-
-    if subfilters.size == 1
-      subfilters.first
-    else
-      {:and => subfilters}
-    end
-  end
-  
   def self.subfilter_for(field, value, operator = nil)
     if value.is_a?(String)
       if operator.nil?
@@ -198,14 +173,6 @@ module Searchable
       models.map {|model| model.result_fields.map {|field| field.to_s}}.flatten
     else
       params[:fields].split ','
-    end
-
-    if params[:citation]
-      models.each do |model|
-        next unless model.cite_key
-        cite_key = model.cite_key.to_s
-        sections << cite_key
-      end
     end
 
     sections.uniq
