@@ -17,11 +17,6 @@ class SearchableTest < Test::Unit::TestCase
     searchable_fields :name, :bio, :personal
     
     field_type :prisoner_id, String # override a number to be a string
-
-
-    # for citation logic, which requires it also be queryable
-    include Queryable::Model
-    cite_key :ssn
   end
 
   class Animal
@@ -94,18 +89,6 @@ class SearchableTest < Test::Unit::TestCase
   def test_fields_for_allows_dot_notation
     fields = Searchable.fields_for Person, fields: "name.first,born_at,ssn.section1.prefix"
     assert_equal ["name.first", "born_at", "ssn.section1.prefix"].sort, fields.sort
-  end
-  
-  def test_fields_for_insists_on_cite_key_if_cite_param_is_present
-    params = {fields: "name,whatever", citation_details: true, citation: "communism"}
-    fields = Searchable.fields_for Person, params
-    assert_equal ["name", "whatever", "ssn"].sort, fields.sort
-  end
-
-  def test_fields_for_doesnt_insert_duplicate_cite_key
-    params = {fields: "name,whatever,ssn", citation_details: true, citation: "communism"}
-    fields = Searchable.fields_for Person, params
-    assert_equal ["name", "whatever", "ssn"].sort, fields.sort
   end
   
   # ordering
@@ -187,26 +170,6 @@ class SearchableTest < Test::Unit::TestCase
     assert filter[:and][:filters].include?(Searchable.subfilter_for('fingers', 9))
   end
 
-  def test_filter_for_includes_citation
-    filter = Searchable.filter_for Person, {'favorite_drug' => "opium", 'fingers' => "9", :citation => "communism"}
-    
-    assert_not_nil filter[:and]
-    assert filter[:and].is_a?(Hash)
-    assert_not_nil filter[:and][:filters]
-    assert filter[:and][:filters].is_a?(Array)
-    
-    assert filter[:and][:filters].include?(Searchable.subfilter_for('favorite_drug', 'opium'))
-    assert filter[:and][:filters].include?(Searchable.subfilter_for('fingers', 9))
-
-    citation_filter = Searchable.citation_filter_for('citation_ids', 'communism')
-    assert filter[:and][:filters].include?(citation_filter), filter[:and][:filters].inspect
-  end
-
-  def test_filter_for_with_only_citation
-    filter = Searchable.filter_for Person, {citation: "communism"}
-    assert_equal filter, Searchable.citation_filter_for('citation_ids', 'communism')
-  end
-  
   def test_filter_for_allows_subfields_in_filters
     # one subfilter is left alone
     filter = Searchable.filter_for Person, {'fingers.left' => "9"}
