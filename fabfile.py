@@ -30,7 +30,7 @@ def links():
 def dependencies():
   run("rvm rvmrc trust %s" % version_path)
   run("cd %s && bundle install --local" % version_path)
-  # run("workon congress && cd %s && pip install -r tasks/requirements.txt" % version_path)
+  run("source %s/virt/bin/activate && cd %s && pip install -r requirements.txt" % (home, version_path))
 
 def create_indexes():
   run("cd %s && rake create_indexes" % version_path)
