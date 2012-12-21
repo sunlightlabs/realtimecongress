@@ -82,9 +82,4 @@ class Bill
 
   # spell out YYYY-MM-DD fields as strings
   field :last_version_on
-
-
-  # citations
-  cite_key :bill_id
-  index citation_ids: 1
 end

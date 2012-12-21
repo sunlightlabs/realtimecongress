@@ -42,7 +42,6 @@ get queryable_route do
   else
     criteria = Queryable.criteria_for model, conditions, fields, order, pagination
     documents = Queryable.documents_for model, criteria, fields
-    documents = citations_for model, documents, params
     results = Queryable.results_for model, criteria, documents, pagination
   end
   
@@ -85,7 +84,6 @@ get searchable_route do
     else
       raw_results = Searchable.raw_results_for term, models, query, filter, fields, order, pagination, other
       documents = Searchable.documents_for term, fields, raw_results
-      documents = citations_for models, documents, params
       results = Searchable.results_for term, models, raw_results, documents, pagination
     end
   rescue ElasticSearch::RequestError => exc
@@ -101,55 +99,6 @@ end
 
 
 helpers do
-
-  def citations_for(models, documents, params)
-    models = [models] unless models.is_a?(Array)
-
-    # must explicitly ask for extra information and performance hit
-    return documents unless params[:citation_details].present?
-
-    # only citation-enabled models
-    return documents unless params[:citation].present? and models.select {|model| model.cite_key.nil?}.empty?
-
-    criteria = {}
-
-    citation_ids = params[:citation].split "|"
-    if citation_ids.size > 1
-      criteria.merge! citation_id: {"$in" => citation_ids}
-    else
-      criteria.merge! citation_id: citation_ids.first
-    end
-
-    if models.size > 1
-      criteria.merge! document_type: {"$in" => models.map(&:to_s)}
-    else
-      criteria.merge! document_type: models.first.to_s
-    end
-
-    documents.map do |document|
-      if models.size > 1
-        model = document[:search][:type].camelize.constantize
-      else
-        model = models.first
-      end
-
-      matches = Citation.where(
-        criteria.merge(
-          document_id: document[model.cite_key.to_s]
-        )
-      )
-      
-      if matches.any?
-        citations = []
-        matches.each do |match|
-          citations += match['citations']
-        end
-        document['citations'] = citations
-      end
-
-      document
-    end
-  end
 
   def error(status, message)
     format = params[:captures][1]

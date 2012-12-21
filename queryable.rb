@@ -10,10 +10,6 @@ module Queryable
       sections += model.basic_fields.map {|field| field.to_s}
     end
 
-    if params[:citation] and model.cite_key
-      sections << model.cite_key.to_s
-    end
-
     sections.uniq
   end
   
@@ -85,17 +81,6 @@ module Queryable
       conditions["$or"] = model.search_fields.map do |key|
         {key => regex_for(params[:search])}
       end
-    end
-
-    if params[:citation].present? and model.cite_key
-      citation_ids = params[:citation].split "|"
-      if citation_ids.size == 1
-        criteria = citation_ids.first
-      else
-        criteria = {"$all" => citation_ids}
-      end
-        
-      conditions['citation_ids'] = criteria
     end
 
     conditions
@@ -241,14 +226,6 @@ module Queryable
   module Model
     module ClassMethods
       
-      def cite_key(field = nil)
-        if field
-          @cite_key = field
-        else
-          @cite_key
-        end
-      end
-
       def default_order(order = nil)
         if order
           @default_order = order
