@@ -404,9 +404,7 @@ module Searchable
     }
 
     Faraday.register_middleware :response, explain_logger: Searchable::ExplainLogger
-    Faraday.register_middleware :response, debug_request: Searchable::DebugRequest
-    Faraday.register_middleware :response, debug_response: Searchable::DebugResponse
-
+    
     Searchable.config = config
 
     Searchable.client = ElasticSearch.new(http_host, options) do |conn|
