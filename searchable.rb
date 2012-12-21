@@ -19,17 +19,6 @@ module Searchable
     conditions
   end
 
-  def self.relaxed_query_for(string, params, search_fields)
-    conditions = {
-      'query_string' => {
-        'query' => string,
-        'default_operator' => (params[:default_operator] || "AND"),
-        'use_dis_max' => true,
-        'fields' => search_fields
-      }
-    }
-  end
-  
   # factored out mainly for ease of unit testing
   def self.subquery_for(term, field)
     {
@@ -53,12 +42,6 @@ module Searchable
 
     return nil unless fields.any?
     subfilters = fields.map do |field, value| 
-      valid_operators = [nil, "gt", "gte", "lt", "lte"]
-
-      # field may have an operator on the end, pluck it out
-      field, operator = field.split "__"
-      next unless valid_operators.include?(operator)
-
       # value is a string, infer whether it needs casting
       if model.respond_to?(:fields) and model.fields[field]
         type = model.fields[field]
@@ -68,7 +51,7 @@ module Searchable
 
       parsed = value_for value, type
 
-      subfilter_for field, parsed, operator
+      subfilter_for field, parsed
     end.compact
 
     return nil unless subfilters.any?
@@ -87,29 +70,20 @@ module Searchable
     end
   end
 
-  def self.subfilter_for(field, value, operator = nil)
+  def self.subfilter_for(field, value)
     if value.is_a?(String)
-      if operator.nil?
-        {
-          query: {
-            text: {
-              field.to_s => {
-                query: value,
-                type: "phrase"
-              }
+      {
+        query: {
+          text: {
+            field.to_s => {
+              query: value,
+              type: "phrase"
             }
           }
         }
-
-      # strings can be filtered on ranges
-      # especially effective on date fields forced to be strings
-      else
-        options = {operator => value.to_s}
-        {range: {field.to_s => options}}
-      end
+      }
 
     elsif value.is_a?(Boolean)
-      # operators don't mean anything here
       {
         term: {
           field.to_s => value.to_s
@@ -117,27 +91,21 @@ module Searchable
       }
 
     elsif value.is_a?(Fixnum)
-      if operator.nil?
-        {term: {field.to_s => value.to_s}}
-      else
-        options = {operator => value.to_s}
-        {range: {field.to_s => options}}
-      end
-
+      {term: {field.to_s => value.to_s}}
+      
     elsif value.is_a?(Time)
-      if operator.nil?
-        from = value
-        to = from + 1.day
-        options = {
-          from: from.iso8601,
-          to: to.iso8601,
-          include_upper: false
+      from = value
+      to = from + 1.day
+      
+      {
+        range: {
+          field.to_s => {
+            from: from.iso8601,
+            to: to.iso8601,
+            include_upper: false
+          }
         }
-      else
-        options = {operator => value.iso8601}
-      end
-
-      {range: {field.to_s => options}}
+      }
     end
   end
   
@@ -273,26 +241,7 @@ module Searchable
     if client_options[:explain]
       explain.search request[0], request[1]
     else
-      # thrift transport may need to reconnect if ES is restarted
-      if thrift?
-        begin
-          thrift.search request[0], request[1]
-        rescue IOError, ElasticSearch::ConnectionFailed => ex
-          if (ex.message =~ /closed stream/) or (ex.message =~ /Broken pipe/)
-            # reset clients
-            configure_clients! 
-
-            # only one retry, no rescue
-            thrift.search request[0], request[1]
-          else
-            raise ex
-          end
-        end
-
-      # use http client, don't be so forgiving
-      else 
-        client.search request[0], request[1]
-      end
+      client.search request[0], request[1]
     end
   end
   
@@ -408,9 +357,8 @@ module Searchable
   def self.original_magic_fields
     [
       :search, 
-      :query, :q,
-      :highlight, :highlight_tags, :highlight_size,
-      :default_operator
+      :query,
+      :highlight, :highlight_tags, :highlight_size
     ]
   end
   
@@ -439,15 +387,6 @@ module Searchable
     @client
   end
 
-  # thrift client
-  def self.thrift=(thrift)
-    @thrift = thrift
-  end
-
-  def self.thrift
-    @thrift
-  end
-
   # explain client (http + middleware)
   def self.explain=(client)
     @explain = client
@@ -457,11 +396,6 @@ module Searchable
     @explain
   end
 
-  def self.thrift?
-    config['elastic_search']['thrift'].present?
-  end
-
-  # load and persist search clients
   def self.configure_clients!
     http_host = "http://#{config['elastic_search']['host']}:#{config['elastic_search']['port']}"
     options = {
@@ -475,33 +409,13 @@ module Searchable
 
     Searchable.config = config
 
-    if thrift?
-      thrift_host = "#{config['elastic_search']['host']}:#{config['elastic_search']['thrift']}"
-      Searchable.thrift = ElasticSearch.new thrift_host, options.merge(transport: ElasticSearch::Transport::Thrift)
-    end
-
     Searchable.client = ElasticSearch.new(http_host, options) do |conn|
-      # conn.response :debug_request # print request to STDOUT
-      # conn.response :debug_response # print response to STDOUT
       conn.adapter Faraday.default_adapter
     end
 
     Searchable.explain = ElasticSearch.new(http_host, options) do |conn|
       conn.response :explain_logger # store last request and response for explain output
       conn.adapter Faraday.default_adapter
-    end
-  end
-  
-  class DebugRequest < Faraday::Response::Middleware
-    def call(env)
-      puts "\nrequest: #{env.inspect}\n\n"
-      super
-    end
-  end
-
-  class DebugResponse < Faraday::Response::Middleware
-    def on_complete(env)
-      puts "\nresponse: #{env.inspect}\n\n"
     end
   end
 
