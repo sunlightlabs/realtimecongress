@@ -15,8 +15,8 @@ require 'rvm/capistrano'
 
 
 set :scm, :git
-set :repository, "git@github.com:sunlightlabs/congress.git"
-set :branch, 'rtc'
+set :repository, "git@github.com:sunlightlabs/realtimecongress.git"
+set :branch, 'master'
 
 set :deploy_via, :remote_cache
 set :runner, user
