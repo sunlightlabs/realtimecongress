@@ -42,7 +42,7 @@ module Searchable
     }
   end
   
-  def self.filter_for(models, params)
+  def self.filter_for(model, params)
     fields = {}
 
     params.keys.each do |key| 
@@ -60,10 +60,11 @@ module Searchable
       next unless valid_operators.include?(operator)
 
       # value is a string, infer whether it needs casting
-      models = [models] unless models.is_a?(Array)
-      types = models.select {|model| model.respond_to?(:fields) and model.fields[field]}
-      # for multiple models, just pick the first (no known clashes anyway)
-      type = types.any? ? types.first.fields[field] : nil
+      if model.respond_to?(:fields) and model.fields[field]
+        type = model.fields[field]
+      else
+        type = nil
+      end
 
       parsed = value_for value, type
 
@@ -142,15 +143,8 @@ module Searchable
   
   # default to all the fields that the model declares as searchable,
   # but allow the user to limit it to a smaller subset of those fields
-  def self.search_fields_for(models, params)
-    models = [models] unless models.is_a?(Array)
-
-    default_fields = models.map {|m| m.searchable_fields.map {|field| field.to_s}}.flatten.uniq
-    if params[:search].blank?
-      default_fields
-    else
-      params[:search].split(',').uniq.select {|field| default_fields.include? field}
-    end
+  def self.search_fields_for(model, params)
+    model.searchable_fields.map &:to_s
   end
   
   def self.order_for(params)
@@ -166,11 +160,9 @@ module Searchable
     [{key => sort}]
   end
   
-  def self.fields_for(models, params)
-    models = [models] unless models.is_a?(Array)
-
+  def self.fields_for(model, params)
     sections = if params[:fields].blank?
-      models.map {|model| model.result_fields.map {|field| field.to_s}}.flatten
+      model.result_fields.map &:to_s
     else
       params[:fields].split ','
     end
@@ -178,8 +170,8 @@ module Searchable
     sections.uniq
   end
 
-  def self.raw_results_for(term, models, query, filter, fields, order, pagination, other)
-    request = request_for models, query, filter, fields, order, pagination, other
+  def self.raw_results_for(term, model, query, filter, fields, order, pagination, other)
+    request = request_for model, query, filter, fields, order, pagination, other
     search_for request
   end
 
@@ -187,14 +179,13 @@ module Searchable
     raw_results.hits.map {|hit| attributes_for term, hit, fields}
   end
 
-  def self.mapping_for(models)
-    models.map {|m| m.to_s.underscore.pluralize}.join ","
+  def self.mapping_for(model)
+    model.to_s.underscore.pluralize
   end
   
-  def self.results_for(term, models, raw_results, documents, pagination)
-    document_type = (models.size == 1) ? mapping_for(models) : "results"
+  def self.results_for(term, model, raw_results, documents, pagination)
     {
-      document_type => documents,
+      mapping_for(model) => documents,
       count: raw_results.total_entries,
       page: {
         count: documents.size,
@@ -204,9 +195,9 @@ module Searchable
     }
   end
   
-  def self.explain_for(term, models, query, filter, fields, order, pagination, other)
-    request = request_for models, query, filter, fields, order, pagination, other
-    mapping = mapping_for models
+  def self.explain_for(term, model, query, filter, fields, order, pagination, other)
+    request = request_for model, query, filter, fields, order, pagination, other
+    mapping = mapping_for model
     
     begin
       start = Time.now
@@ -305,7 +296,7 @@ module Searchable
     end
   end
   
-  def self.request_for(models, query, filter, fields, order, pagination, other)
+  def self.request_for(model, query, filter, fields, order, pagination, other)
     from = pagination[:per_page] * (pagination[:page]-1)
     size = pagination[:per_page]
     
@@ -327,7 +318,7 @@ module Searchable
      
       # mapping and pagination info has to go into the second hash
       {
-        type: mapping_for(models),
+        type: mapping_for(model),
         from: from,
         size: size
       }
@@ -522,7 +513,7 @@ module Searchable
     def call(env)
       @@last_request = {
         body: env[:body] ? ::Oj::load(env[:body]) : nil, 
-        url: env[:url].to_s
+        url: env[:url].to_s.sub(/^http:\/\/[^\/]+/, '')
       }
       super
     end
@@ -530,7 +521,7 @@ module Searchable
     def on_complete(env)
       @@last_response = {
         body: env[:body] ? ::Oj::load(env[:body]) : nil,
-        url: env[:url].to_s
+        url: env[:url].to_s.sub(/^http:\/\/[^\/]+/, '')
       }
     end
   end

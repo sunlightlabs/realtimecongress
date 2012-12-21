@@ -56,35 +56,30 @@ end
 get searchable_route do
   error 400, "You must provide a search term with the 'query' parameter (for phrase searches) or 'q' parameter (for query string searches)." unless params[:query] or params[:q]
 
-  models = params[:captures][0].split(",").map {|m| m.singularize.camelize.constantize}
+  model = params[:captures][0].singularize.camelize.constantize
   format = params[:captures][1]
 
   term = Searchable.term_for params
-  fields = Searchable.fields_for models, params
-  search_fields = Searchable.search_fields_for models, params
+  fields = Searchable.fields_for model, params
+  search_fields = Searchable.search_fields_for model, params
 
   if search_fields.empty?
     error 400, "You must search one of the following fields for #{params[:captures][0]}: #{model.searchable_fields.join(", ")}"
   end
   
-  if params[:query]
-    query = Searchable.query_for term, params, search_fields
-  elsif params[:q]
-    query = Searchable.relaxed_query_for term, params, search_fields
-  end
-
-  filter = Searchable.filter_for models, params
+  query = Searchable.query_for term, params, search_fields
+  filter = Searchable.filter_for model, params
   order = Searchable.order_for params
   pagination = Searchable.pagination_for params
   other = Searchable.other_options_for params, search_fields
   
   begin
     if params[:explain] == 'true'
-      results = Searchable.explain_for term, models, query, filter, fields, order, pagination, other
+      results = Searchable.explain_for term, model, query, filter, fields, order, pagination, other
     else
-      raw_results = Searchable.raw_results_for term, models, query, filter, fields, order, pagination, other
+      raw_results = Searchable.raw_results_for term, model, query, filter, fields, order, pagination, other
       documents = Searchable.documents_for term, fields, raw_results
-      results = Searchable.results_for term, models, raw_results, documents, pagination
+      results = Searchable.results_for term, model, raw_results, documents, pagination
     end
   rescue ElasticSearch::RequestError => exc
     results = Searchable.error_from exc
@@ -124,7 +119,7 @@ helpers do
   def xml(results)
     xml_exceptions results
     response['Content-Type'] = 'application/xml'
-    results.to_xml :root => 'results', :dasherize => false
+    results.to_xml root: 'results', dasherize: false
   end
   
   # a hard-coded XML exception for vote names, which I foolishly made as keys
