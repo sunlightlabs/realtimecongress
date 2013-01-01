@@ -168,9 +168,39 @@ module Utils
   def self.current_session
     session_for_year Time.now.year
   end
+
+  # legislative year - consider Jan 1, Jan 2, and first half of Jan 3 to be last year
+  def self.current_legislative_year
+    now = Time.now
+    year = now.year
+    if now.month == 1
+      if [1, 2].include?(now.day)
+        year - 1
+      elsif (now.day == 3) and (t.hour < 12)
+        year - 1
+      else
+        year
+      end
+    else
+      year
+    end
+  end
+
+  # legislative (sub)session - 1 or 2, depending on current legislative year
+  def self.legislative_session_for_year(year)
+    session = year % 2
+    session = 2 if session == 0
+    session.to_s
+  end
   
   def self.session_for_year(year)
     ((year + 1) / 2) - 894
+  end
+
+  # e.g. 111 -> [2009, 2010], 112 -> [2011, 2012]
+  def self.years_for_congress(congress)
+    first = ((congress + 894) * 2) - 1
+    [first, first + 1]
   end
   
   # map govtrack type to RTC type

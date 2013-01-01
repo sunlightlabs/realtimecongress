@@ -12,39 +12,43 @@ class VotesSenate
   # 
   # options:
   #   force: if archiving, force it to re-download existing files.
-  #   year: archive an entire year of data (defaults to latest 20)
-  #   number: only download a specific roll call vote number for the given year. Ignores other options, except for year. 
+  #   congress: archive an entire congress' worth of votes (defaults to latest 20)
+  #   session: archive a specific session within a congress (typically, 1 or 2)
+  #   roll_id: only download a specific roll call vote. Ignores other options.
   #   limit: only download a certain number of votes (stop short, useful for testing/development)
   
   def self.run(options = {})
-    year = if options[:year].nil? or (options[:year] == 'current')
-      Time.now.year
+    # if specifying a congress, turn on archive mode, 
+    # fetch all sessions unless that is also specified
+    if options[:congress]
+      congress = options[:congress].to_i
+      sessions = options[:session] ? [options[:session]] : ["1", "2"]
+
+    # by default, fetch the current congress' current session
     else
-      options[:year].to_i
+      congress = Utils.current_session
+      # just the last session for that congress
+      year = Utils.current_legislative_year
+      session = year % 2
+      session = 2 if session == 0
+      sessions = [session.to_s]
     end
     
-    initialize_disk! year
+    initialize_disk! congress
 
-    to_get = []
-
-    if options[:number]
-      to_get = [options[:number].to_i]
+    if options[:roll_id]
+      to_get = [options[:roll_id]]
     else
-      # count down from the top
-      unless latest_roll = latest_roll_for(year, options)
-        Report.failure self, "Failed to find the latest new roll on the Senate's site, can't go on."
-        return
-      end
+      to_get = []
       
-      if options[:year]
-        from_roll = 1
-      else
-        latest = options[:latest] ? options[:latest].to_i : 20
-        from_roll = (latest_roll - latest) + 1
-        from_roll = 1 if from_roll < 1
-      end
+      sessions.reverse.each do |session|
+        unless rolls = rolls_for(congress, session, options)
+          Report.failure self, "Failed to find the latest new roll on the Senate's site, can't go on."
+          return
+        end
 
-      to_get = (from_roll..latest_roll).to_a.reverse
+        to_get += rolls.reverse
+      end
       
       if options[:limit]
         to_get = to_get.first options[:limit].to_i
@@ -63,14 +67,12 @@ class VotesSenate
     # will be referenced by LIS ID as a cache built up as we parse through votes
     legislators = {}
 
-    to_get.each do |number|
-      url = url_for year, number
+    to_get.each do |roll_id|
+      number, year = roll_id.tr('s', '').split("-").map &:to_i
+      session = Utils.legislative_session_for_year year
       
-      roll_id = "s#{number}-#{year}"
-      session = Utils.session_for_year year
-
       puts "[#{roll_id}] Syncing to disc..." if options[:debug]
-      unless download_roll year, number, download_failures, options
+      unless download_roll year, congress, session, number, download_failures, options
         puts "[#{roll_id}] WARNING: Couldn't sync to disc, skipping"
         next
       end
@@ -79,7 +81,7 @@ class VotesSenate
       puts "[#{roll_id}] Saving vote information..." if options[:debug]
       
 
-      bill_id = bill_id_for doc, session
+      bill_id = bill_id_for doc, congress
       voter_ids, voters = votes_for doc, legislators, missing_legislators
 
       roll_type = doc.at("question").text
@@ -89,38 +91,39 @@ class VotesSenate
 
       vote = Vote.find_or_initialize_by roll_id: roll_id
       vote.attributes = {
-        :vote_type => Utils.vote_type_for(roll_type, question),
-        :how => "roll",
-        :chamber => "senate",
-        :year => year,
-        :number => number,
+        vote_type: Utils.vote_type_for(roll_type, question),
+        how: "roll",
+        chamber: "senate",
+        year: year,
+        number: number,
         
-        :session => session,
+        session: congress,
+        subsession: session,
         
-        :roll_type => roll_type,
-        :question => question,
-        :result => result,
-        :required => required_for(doc),
+        roll_type: roll_type,
+        question: question,
+        result: result,
+        required: required_for(doc),
         
-        :voted_at => voted_at_for(doc),
-        :voter_ids => voter_ids,
-        :voters => voters,
-        :vote_breakdown => Utils.vote_breakdown_for(voters),
+        voted_at: voted_at_for(doc),
+        voter_ids: voter_ids,
+        voters: voters,
+        vote_breakdown: Utils.vote_breakdown_for(voters),
       }
       
       if bill_id
         if bill = Utils.bill_for(bill_id)
           vote.attributes = {
-            :bill_id => bill_id,
-            :bill => bill
+            bill_id: bill_id,
+            bill: bill
           }
         elsif bill = create_bill(bill_id, doc)
           vote.attributes = {
-            :bill_id => bill_id,
-            :bill => Utils.bill_for(bill)
+            bill_id: bill_id,
+            bill: Utils.bill_for(bill)
           }
         else
-          missing_bill_ids << {:roll_id => roll_id, :bill_id => bill_id}
+          missing_bill_ids << {roll_id: roll_id, bill_id: bill_id}
         end
       end
       
@@ -148,11 +151,13 @@ class VotesSenate
       Report.warning self, "Found #{missing_bill_ids.size} missing bill_id's while processing votes.", missing_bill_ids: missing_bill_ids
     end
     
-    Report.success self, "Successfully synced #{count} Senate roll call votes for #{year}"
+    Report.success self, "Successfully synced #{count} Senate roll call votes from #{congress}th Congress"
   end
 
-  def self.initialize_disk!(year)
-    FileUtils.mkdir_p "data/senate/rolls/#{year}"
+  def self.initialize_disk!(congress)
+    Utils.years_for_congress(congress).each do |year|
+      FileUtils.mkdir_p "data/senate/rolls/#{year}"
+    end
   end
 
   def self.destination_for(year, number)
@@ -161,24 +166,26 @@ class VotesSenate
   
   
   # find the latest roll call number listed on the Senate roll call vote page for a given year
-  def self.latest_roll_for(year, options = {})
-    subsession = {0 => 2, 1 => 1}[year % 2]
-    session = Utils.session_for_year year
-    url = "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_#{session}_#{subsession}.htm"
+  def self.rolls_for(congress, session, options = {})
+    url = "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_#{congress}_#{session}.htm"
     
-    puts "[#{year}] Fetching index page for #{year} (#{url}) from Senate website..." if options[:debug]
+    puts "[#{congress}-#{session}] Fetching index page for (#{url}) from Senate website..." if options[:debug]
     return nil unless doc = Utils.html_for(url)
     
     element = doc.css("td.contenttext td.contenttext a").first
     return nil unless element and element.text.present?
-    number = element.text.to_i
-    number > 0 ? number : nil
+    latest = element.text.to_i
+    if latest > 0
+      (1..latest).map do |number|
+        roll_id_for number, congress, session
+      end
+    else
+      []
+    end
   end
   
-  def self.url_for(year, number)
-    subsession = {0 => 2, 1 => 1}[year % 2]
-    session = Utils.session_for_year year
-    "http://www.senate.gov/legislative/LIS/roll_call_votes/vote#{session}#{subsession}/vote_#{session}_#{subsession}_#{zero_prefix number}.xml"
+  def self.url_for(congress, session, number)
+    "http://www.senate.gov/legislative/LIS/roll_call_votes/vote#{congress}#{session}/vote_#{congress}_#{session}_#{zero_prefix number}.xml"
   end
   
   def self.zero_prefix(number)
@@ -279,8 +286,8 @@ class VotesSenate
   end
 
 
-  def self.download_roll(year, number, failures, options = {})
-    url = url_for year, number
+  def self.download_roll(year, congress, session, number, failures, options = {})
+    url = url_for congress, session, number
     destination = destination_for year, number
 
     # cache aggressively, redownload only if force option is passed
@@ -292,6 +299,7 @@ class VotesSenate
     puts "\tDownloading #{url} to #{destination}" if options[:debug]
 
     unless curl = Utils.curl(url, destination)
+      puts "Couldn't download #{url}" if options[:debug]
       failures << {message: "Couldn't download", url: url, destination: destination}
       return false
     end
@@ -299,6 +307,7 @@ class VotesSenate
     unless curl.content_type == "application/xml"
       # don't consider it a failure - the vote's probably just not up yet
       # failures << {message: "Wrong content type", url: url, destination: destination, content_type: curl.content_type}
+      puts "Wrong content type for #{url}" if options[:debug]
       FileUtils.rm destination # delete bad file from the cache
       return false
     end
@@ -325,6 +334,21 @@ class VotesSenate
     end
 
     true
+  end
+
+  # infer year for a roll ID, given its number, congress, and session
+  # year is a "legislative year", consistently determinable from the congress/session
+  def self.roll_id_for(number, congress, session)
+    years = Utils.years_for_congress congress
+    if session == "1"
+      year = years[0]
+    elsif session == "2"
+      year = years[1]
+    else
+      return nil # unhandled right now
+    end
+
+    "s#{number}-#{year}"
   end
   
 end
