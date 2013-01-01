@@ -166,7 +166,7 @@ module Utils
   
   # e.g. 2009 & 2010 -> 111th session, 2011 & 2012 -> 112th session
   def self.current_session
-    session_for_year Time.now.year
+    session_for_year current_legislative_year
   end
 
   # legislative year - consider Jan 1, Jan 2, and first half of Jan 3 to be last year

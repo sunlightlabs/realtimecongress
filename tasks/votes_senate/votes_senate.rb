@@ -23,6 +23,7 @@ class VotesSenate
     if options[:congress]
       congress = options[:congress].to_i
       sessions = options[:session] ? [options[:session]] : ["1", "2"]
+      limit = options[:limit] ? options[:limit].to_i : nil
 
     # by default, fetch the current congress' current session
     else
@@ -32,6 +33,7 @@ class VotesSenate
       session = year % 2
       session = 2 if session == 0
       sessions = [session.to_s]
+      limit = options[:limit] ? options[:limit].to_i : 20
     end
     
     initialize_disk! congress
@@ -50,8 +52,8 @@ class VotesSenate
         to_get += rolls.reverse
       end
       
-      if options[:limit]
-        to_get = to_get.first options[:limit].to_i
+      if limit
+        to_get = to_get.first limit.to_i
       end
     end
 
