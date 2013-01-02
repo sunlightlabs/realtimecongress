@@ -170,13 +170,13 @@ module Utils
   end
 
   # legislative year - consider Jan 1, Jan 2, and first half of Jan 3 to be last year
-  def self.current_legislative_year
-    now = Time.now
+  def self.current_legislative_year(now = nil)
+    now ||= Time.now
     year = now.year
     if now.month == 1
       if [1, 2].include?(now.day)
         year - 1
-      elsif (now.day == 3) and (t.hour < 12)
+      elsif (now.day == 3) and (now.hour < 12)
         year - 1
       else
         year

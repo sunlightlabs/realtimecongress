@@ -65,7 +65,7 @@ class CommitteeHearingsHouse
 
     count = 0
 
-    session = Utils.session_for_year year.to_i
+    
     chamber = "house"
 
     doc = Nokogiri::HTML body
@@ -118,6 +118,10 @@ class CommitteeHearingsHouse
       else
         subcommittee_id = nil
       end
+
+      # use occurs_at to determine proper session
+      legislative_year = Utils.current_legislative_year occurs_at
+      session = Utils.session_for_year legislative_year
 
       bill_ids = bill_ids_for title, session
 
