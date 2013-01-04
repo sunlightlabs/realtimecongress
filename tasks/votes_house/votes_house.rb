@@ -56,7 +56,6 @@ class VotesHouse
     download_failures = []
     es_failures = []
     missing_bioguide_ids = []
-    missing_bill_ids = []
     
     batcher = [] # ES batch indexing
 
@@ -127,13 +126,12 @@ class VotesHouse
             bill_id: bill_id,
             bill: bill
           }
-        elsif bill = create_bill(bill_id, doc)
+        else
+          bill = create_bill bill_id, doc
           vote.attributes = {
             bill_id: bill_id,
             bill: Utils.bill_for(bill)
           }
-        else
-          missing_bill_ids << {roll_id: roll_id, bill_id: bill_id}
         end
       end
       
@@ -156,10 +154,6 @@ class VotesHouse
     if missing_bioguide_ids.any?
       missing_bioguide_ids = missing_bioguide_ids.uniq
       Report.warning self, "Found #{missing_bioguide_ids.size} missing Bioguide IDs, attached. Vote counts on roll calls may be inaccurate until these are fixed.", {missing_bioguide_ids: missing_bioguide_ids}
-    end
-    
-    if missing_bill_ids.any?
-      Report.warning self, "Found #{missing_bill_ids.size} missing bill_id's while processing votes.", {missing_bill_ids: missing_bill_ids}
     end
     
     Report.success self, "Successfully synced #{count} House roll call votes for #{year}"
