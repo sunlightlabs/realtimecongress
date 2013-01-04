@@ -100,40 +100,40 @@ class VotesHouse
       
       vote = Vote.find_or_initialize_by roll_id: roll_id
       vote.attributes = {
-        :vote_type => Utils.vote_type_for(roll_type, roll_type),
-        :how => "roll",
-        :chamber => "house",
-        :year => year,
-        :number => number,
+        vote_type: Utils.vote_type_for(roll_type, roll_type),
+        how: "roll",
+        chamber: "house",
+        year: year,
+        number: number,
 
-        :vacated => vacated,
+        vacated: vacated,
         
-        :session => session,
+        session: session,
         
-        :roll_type => roll_type,
-        :question => question,
-        :result => doc.at("vote-result").inner_text,
-        :required => required_for(doc),
+        roll_type: roll_type,
+        question: question,
+        result: doc.at("vote-result").inner_text,
+        required: required_for(doc),
         
-        :voted_at => voted_at_for(doc),
-        :voter_ids => voter_ids,
-        :voters => voters,
-        :vote_breakdown => Utils.vote_breakdown_for(voters),
+        voted_at: voted_at_for(doc),
+        voter_ids: voter_ids,
+        voters: voters,
+        vote_breakdown: Utils.vote_breakdown_for(voters),
       }
       
       if bill_id
         if bill = Utils.bill_for(bill_id)
           vote.attributes = {
-            :bill_id => bill_id,
-            :bill => bill
+            bill_id: bill_id,
+            bill: bill
           }
         elsif bill = create_bill(bill_id, doc)
           vote.attributes = {
-            :bill_id => bill_id,
-            :bill => Utils.bill_for(bill)
+            bill_id: bill_id,
+            bill: Utils.bill_for(bill)
           }
         else
-          missing_bill_ids << {:roll_id => roll_id, :bill_id => bill_id}
+          missing_bill_ids << {roll_id: roll_id, bill_id: bill_id}
         end
       end
       
@@ -294,7 +294,7 @@ class VotesHouse
   
   def self.create_bill(bill_id, doc)
     bill = Utils.bill_from bill_id
-    bill.attributes = {:abbreviated => true}
+    bill.attributes = {abbreviated: true}
     bill.save!
     bill
   end
