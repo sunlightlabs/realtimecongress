@@ -11,6 +11,7 @@ GEM
     builder (3.0.4)
     crack (0.1.8)
     curb (0.8.1)
+    docsplit (0.6.3)
     faraday (0.8.4)
       multipart-post (~> 1.1)
     feedzirra (0.2.0.rc2)
@@ -94,6 +95,7 @@ PLATFORMS
 
 DEPENDENCIES
   curb (= 0.8.1)
+  docsplit
   feedzirra (= 0.2.0rc2)
   httparty (= 0.7.8)
   mongoid (= 3.0.11)
