@@ -79,41 +79,6 @@ class DocumentsGaoReports
         next
       end
 
-      # figure out whether we can get the full text
-      full_text = nil
-
-      # always download the PDF, just to have it
-      if pdf_url
-        cache = cache_path_for gao_id, "report.pdf"
-        unless Utils.download(pdf_url, options.merge(destination: cache))
-          warnings << {gao_id: gao_id, url: pdf_url, message: "Couldn't download PDF of report"}
-        end
-      end
-
-      # if GAO provides an "Accessible Text" version, use that
-      if text_url
-        cache = cache_path_for gao_id, "report.download.txt"
-        unless full_text = Utils.download(text_url, options.merge(destination: cache))
-          warnings << {gao_id: gao_id, url: text_url, message: "Couldn't download text version of report"}
-        end
-
-        # if the text is downloaded, needs to be treated as ISO-8859-1 and then converted to UTF-8
-        full_text.force_encoding("ISO-8859-1")
-        full_text = full_text.encode "UTF-8", :invalid => :replace, :undef => :replace
-
-      # otherwise, create a file in the same place using a rip of the PDF
-      elsif pdf_url
-        pdf_path = cache_path_for gao_id, "report.pdf"
-        output = cache_path_for gao_id, "report.txt"
-
-        if File.exists?(pdf_path)
-          # depending on Docsplit's behavior of just changing the extension
-          Docsplit.extract_text(pdf_path, ocr: false, output: File.dirname(output))
-
-          full_text = File.read(output) if File.exists?(output)
-        end
-      end
-
       document_id = "GAO-#{gao_id}"
 
       attributes = {
