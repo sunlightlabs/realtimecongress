@@ -27,10 +27,13 @@ class FloorUpdatesLiveSenate
     # accumulate results in hash, keyed by date string, values are array of text updates
     updates = {}
     current_date = nil
+
+    warnings = []
     
     (title_elem.parent / :p).each do |item|
       # ignore headers and footer
       next if ["senate floor proceedings", "today's senate floor log", "\302\240"].include?(item.text.strip.downcase)
+      next if [/ShockwaveFlash/i, /for reference only/i].find {|r| item.text.strip =~ r}
       
       if item['align'] == 'center'
         if Time.zone.parse(item.text)
@@ -42,7 +45,7 @@ class FloorUpdatesLiveSenate
       
       else # item['align'] == 'left' or item['align'].nil?
         if current_date.nil?
-          Report.warning self, "Unexpected HTML, got to a update without a date, skipping"
+          warnings << {message: "Unexpected HTML, got to a update without a date, skipping", html: item.text}
           next
         end
         
@@ -56,8 +59,16 @@ class FloorUpdatesLiveSenate
     
     session = Utils.current_session
     
+    today = Time.now.midnight
+
     updates.keys.sort.each do |legislative_day|
-      todays = FloorUpdate.where(:legislative_day => legislative_day).all.map {|u| u['events']}.flatten
+      # skip unless it's within a day of today
+      this = Time.parse(legislative_day).midnight
+      if (this > (today + 1.day)) or (this < (today - 1.day))
+        next
+      end
+
+      todays = FloorUpdate.where(legislative_day: legislative_day).all.map {|u| u['events']}.flatten
       items = updates[legislative_day]
       
       # puts legislative_day
@@ -71,14 +82,14 @@ class FloorUpdatesLiveSenate
         end
         
         floor_update = FloorUpdate.new(
-          :chamber => "senate",
-          :session => session,
-          :legislative_day => legislative_day,
-          :timestamp => Time.now,
-          :events => [item],
-          :bill_ids => extract_bills(item),
-          :roll_ids => extract_rolls(item),
-          :legislator_ids => extract_legislators(item)
+          chamber: "senate",
+          session: session,
+          legislative_day: legislative_day,
+          timestamp: Time.now,
+          events: [item],
+          bill_ids: extract_bills(item),
+          roll_ids: extract_rolls(item),
+          legislator_ids: extract_legislators(item)
         )
         
         if floor_update.save
@@ -96,6 +107,10 @@ class FloorUpdatesLiveSenate
     
     if failures.any?
       Report.failure self, "Failed to save #{failures.size} floor updates, attributes attached", :failures => failures
+    end
+
+    if warnings.any?
+      Report.warning self, "Warnings while scanning floor", warnings: warnings
     end
     
     Report.success self, "Saved #{count} new floor updates"
