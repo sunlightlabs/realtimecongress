@@ -6,7 +6,7 @@ class Committee
   index chamber: 1
   index subcommittee: 1
   index membership_ids: 1
-  index congresses: 1
+  index current: 1
   
   validates_presence_of :committee_id
   validates_presence_of :chamber
@@ -19,6 +19,6 @@ class Committee
   default_order :created_at
   basic_fields :committee_id, :name, :chamber, :subcommittee,
     :website, :address, :office, :phone,
-    :senate_committee_id, :house_committee_id
+    :senate_committee_id, :house_committee_id, :current
   search_fields :name
 end
