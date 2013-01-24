@@ -174,6 +174,7 @@ class CommitteeHearingsHouse
 
   def self.subcommittee_for(subcommittee_name)
     subcommittee_name = subcommittee_name.gsub /^Subcommittee (on )?/i, ''
+    subcommittee_name = subcommittee_name.gsub "&", "and"
     
     # known House mistake
     subcommittee_name = subcommittee_name.gsub "Oceans and Insular Affairs", "Oceans, and Insular Affairs"
