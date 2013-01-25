@@ -9,7 +9,7 @@
 0 3 * * *    /projects/rtc/shared/cron/task.sh legislators && /projects/rtc/shared/cron/task.sh committees
 
 # bills synced from gathered THOMAS data
-0 10,16 * * * /projects/rtc/run-thomas.sh && /projects/rtc/shared/cron/task.sh bills_thomas && /projects/rtc/shared/cron/task.sh bills_thomas session=112
+0 10,16 * * * /projects/rtc/run-thomas.sh && /projects/rtc/shared/cron/task.sh bills_thomas
 
 # amendments synced from GovTrack - sync twice a day
 # 30 16 * * * /projects/rtc/shared/cron/task.sh amendments_archive
