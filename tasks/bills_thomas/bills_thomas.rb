@@ -52,13 +52,13 @@ class BillsThomas
       end
 
       cosponsors, missing = cosponsors_for doc['cosponsors'], legislators
-      missing_legislators << missing.map {|m| [bill_id, missing]} if missing.any?
+      missing_legislators += missing.map {|m| [bill_id, m]} if missing.any?
 
       actions = actions_for(doc['actions'])
       last_action = last_action_for actions
       
       committees, missing = committees_for doc['committees'], session, committee_cache
-      missing_committees << missing.map {|m| [bill_id, missing]} if missing.any?
+      missing_committees += missing.map {|m| [bill_id, m]} if missing.any?
 
       related_bills = related_bills_for doc['related_bills']
       
