@@ -111,20 +111,13 @@ class CommitteeHearingsHouse
       # first piece of bottom is the host, but we extracted that more reliably already
       # second piece of bottom is the subcommittee name, or "Full Committee"
 
-      if bottom_pieces[1] and (bottom_pieces[1] =~ /subcommittee[^s]/i)
-        # temporary: ignore these until committees can be updated
-        ignore = [
-          "Subcommittee on Middle East and North Africa",
-          "Subcommittee on Africa, Global Health, Global Human Rights and International Organizations"
-        ]
-        if !ignore.include?(bottom_pieces[1])
-          unless subcommittee_id = subcommittee_for(bottom_pieces[1])
-            bad_committee_lookups << bottom_pieces[1]
-          end
-        end
-      else
-        subcommittee_id = nil
-      end
+      # if bottom_pieces[1] and (bottom_pieces[1] =~ /subcommittee[^s]/i)
+      #   unless subcommittee_id = subcommittee_for(bottom_pieces[1])
+      #     bad_committee_lookups << bottom_pieces[1]
+      #   end
+      # else
+      #   subcommittee_id = nil
+      # end
 
       # use occurs_at to determine proper session
       legislative_year = Utils.current_legislative_year occurs_at
@@ -161,9 +154,9 @@ class CommitteeHearingsHouse
         dc: dc
       }
 
-      if subcommittee_id
-        hearing[:subcommittee_id] = subcommittee_id
-      end
+      # if subcommittee_id
+      #   hearing[:subcommittee_id] = subcommittee_id
+      # end
 
       hearing.save!
       count += 1
