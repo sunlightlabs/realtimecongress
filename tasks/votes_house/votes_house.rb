@@ -319,12 +319,10 @@ class VotesHouse
     datestamp = doc.at("action-date").inner_text
     timestamp = doc.at("action-time").inner_text
 
-    date = Utils.utc_parse datestamp
-
     if timestamp.present?
-      time = Utils.utc_parse timestamp
-      Time.utc date.year, date.month, date.day, time.hour, time.min, time.sec
+      Utils.utc_parse "#{datestamp} #{timestamp}"
     else
+      date = Utils.utc_parse datestamp
       Utils.noon_utc_for date
     end
   end
