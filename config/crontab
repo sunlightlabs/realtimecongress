@@ -11,8 +11,8 @@
 # bills synced from gathered THOMAS data
 0 10,16 * * * /projects/rtc/run-thomas.sh && /projects/rtc/shared/cron/task.sh bills_thomas
 
-# amendments synced from GovTrack - sync twice a day
-# 30 16 * * * /projects/rtc/shared/cron/task.sh amendments_archive
+# amendments synced from GovTrack - sync once a day
+30 16 * * * /projects/rtc/shared/cron/task.sh amendments_archive
 
 # full bill text from GPO
 0 10 * * * /projects/rtc/shared/cron/task.sh bulk_gpo_bills
