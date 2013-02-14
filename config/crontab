@@ -43,7 +43,7 @@
 0 * * * * /projects/rtc/shared/cron/task.sh committee_hearings_house
 
 # upcoming leadership information
-# 0 * * * * /projects/rtc/shared/cron/task.sh upcoming_senate_daily
+0 * * * * /projects/rtc/shared/cron/task.sh upcoming_senate_daily
 0 * * * * /projects/rtc/shared/cron/task.sh upcoming_house_daily
 
 
