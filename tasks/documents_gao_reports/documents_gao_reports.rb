@@ -137,7 +137,7 @@ class DocumentsGaoReports
     return nil unless body
 
     Nokogiri::HTML(body).css("div.listing").map do |div|
-      div['content_id']
+      div['data-content_id']
     end
   end
 
