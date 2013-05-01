@@ -1,4 +1,4 @@
-source 'http://rubygems.org'
+source 'https://rubygems.org'
 
 gem 'oj', '1.3.0'
 gem 'yajl-ruby', '1.1.0'
