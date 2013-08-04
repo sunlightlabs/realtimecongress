@@ -7,21 +7,20 @@ class Legislators
   #   current: limit to current legislators only
 
   def self.run(options = {})
-    
+
     # wipe and re-clone the unitedstates legislators repo
     unless options[:cache]
       FileUtils.mkdir_p "data/unitedstates"
       FileUtils.rm_rf "data/unitedstates/congress-legislators"
       unless system "git clone git://github.com/unitedstates/congress-legislators.git data/unitedstates/congress-legislators"
-        Report.exception self, "Couldn't clone legislator data from unitedstates."
+        Report.failure self, "Couldn't clone legislator data from unitedstates."
         return false
       end
-      puts
     end
 
     puts "Loading in YAML files..." if options[:debug]
     current_legislators = YAML.load open("data/unitedstates/congress-legislators/legislators-current.yaml")
-    
+
     social_media = YAML.load open("data/unitedstates/congress-legislators/legislators-social-media.yaml")
     social_media_cache = {}
     social_media.each {|details| social_media_cache[details['id']['bioguide']] = details}
@@ -29,7 +28,7 @@ class Legislators
     bad_legislators = []
     count = 0
 
-    us_legislators = current_legislators.map {|l| [l,true]} 
+    us_legislators = current_legislators.map {|l| [l,true]}
     unless options[:current]
       historical_legislators = YAML.load open("data/unitedstates/congress-legislators/legislators-historical.yaml")
       us_legislators += historical_legislators.map {|l| [l, false]}
@@ -58,11 +57,11 @@ class Legislators
     if bad_legislators.any?
       Report.warning self, "Failed to save #{bad_legislators.size} united_states legislators, attached", bad_legislators: bad_legislators
     end
-    
+
     Report.success self, "Processed #{count} legislators from unitedstates"
   end
 
-  
+
   def self.attributes_from_united_states(us_legislator, current)
     last_term = us_legislator['terms'].last
 
@@ -110,12 +109,12 @@ class Legislators
   def self.youtube_url_for(username)
     "http://www.youtube.com/#{username}"
   end
-    
+
   def self.social_media_from(details)
     {
       twitter_id: details['social']['twitter'],
       youtube_url: youtube_url_for(details['social']['youtube'])
     }
   end
-  
+
 end
