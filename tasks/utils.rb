@@ -5,11 +5,11 @@ require 'yajl'
 
 module Utils
 
-  # document is a hash, 
-  # collection is a mapping (e.g. 'bills'), 
+  # document is a hash,
+  # collection is a mapping (e.g. 'bills'),
   # id is a string unique to the collection
   # bulk_container is an array, will use it to persist a batch for bulk indexing
-  # 
+  #
   # if given a bulk_size, will use it to determine when to batch and empty the container
   def self.es_batch!(collection, id, document, batcher, options = {})
     # turn off batching
@@ -31,7 +31,7 @@ module Utils
 
   # force a batch index of the container (useful to close out a batch)
   def self.es_flush!(collection, batcher)
-    return if batcher.empty? 
+    return if batcher.empty?
 
     puts "\n-- Batch indexing #{batcher.size} documents into '#{collection}' --\n\n"
 
@@ -43,14 +43,14 @@ module Utils
 
     batcher.clear # reset
   end
-  
+
   def self.curl(url, destination = nil)
     body = begin
       curl = Curl::Easy.new url
       curl.follow_location = true # follow redirects
       curl.perform
-    rescue Curl::Err::ConnectionFailedError, Curl::Err::PartialFileError, 
-      Curl::Err::RecvError, Timeout::Error, Curl::Err::HostResolutionError, 
+    rescue Curl::Err::ConnectionFailedError, Curl::Err::PartialFileError,
+      Curl::Err::RecvError, Timeout::Error, Curl::Err::HostResolutionError,
       Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::ENETUNREACH, Errno::ECONNREFUSED
       puts "Error curling #{url}"
       nil
@@ -68,11 +68,11 @@ module Utils
     else
       body
     end
-    
+
   end
 
   # general helper for downloading stuff and caching
-  # 
+  #
   # options:
   #   cache: use cache; will always download from network if missing
   #   destination: destination on disk, required for caching
@@ -84,7 +84,7 @@ module Utils
     # cache if caching is opted-into, and the cache exists
     if options[:cache] and options[:destination] and File.exists?(options[:destination])
       puts "Cached #{url} from #{options[:destination]}, not downloading..." if options[:debug]
-      
+
       body = File.read options[:destination]
       body = Yajl::Parser.parse(body) if options[:json]
       body
@@ -92,13 +92,13 @@ module Utils
     # download, potentially saving to disk
     else
       puts "Downloading #{url} to #{options[:destination] || "[not cached]"}..." if options[:debug]
-      
+
       body = begin
         curl = Curl::Easy.new url
         curl.follow_location = true # follow redirects
         curl.perform
-      rescue Curl::Err::ConnectionFailedError, Curl::Err::PartialFileError, 
-        Curl::Err::RecvError, Timeout::Error, Curl::Err::HostResolutionError, 
+      rescue Curl::Err::ConnectionFailedError, Curl::Err::PartialFileError,
+        Curl::Err::RecvError, Timeout::Error, Curl::Err::HostResolutionError,
         Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::ENETUNREACH, Errno::ECONNREFUSED
         puts "Error curling #{url}"
         nil
@@ -122,7 +122,7 @@ module Utils
       if options[:rate_limit]
         sleep options[:rate_limit].to_f
       end
-      
+
       body
     end
   end
@@ -141,7 +141,7 @@ module Utils
     body = curl url
     body ? Nokogiri::XML(body) : nil
   end
-  
+
   # If it's a full timestamp with hours and minutes and everything, store that
   # Otherwise, if it's just a day, store the day with a date of noon UTC
   # So that it's the same date everywhere
@@ -152,7 +152,7 @@ module Utils
       noon_utc_for timestamp
     end
   end
-  
+
   # given a timestamp of the form "2011-02-18", return noon UTC on that day
   def self.noon_utc_for(timestamp)
     time = timestamp.is_a?(String) ? Time.parse(timestamp) : timestamp
@@ -163,7 +163,7 @@ module Utils
     time = Time.zone.parse(timestamp)
     time ? time.utc : nil
   end
-  
+
   # e.g. 2009 & 2010 -> 111th session, 2011 & 2012 -> 112th session
   def self.current_session
     session_for_year current_legislative_year
@@ -192,7 +192,7 @@ module Utils
     session = 2 if session == 0
     session.to_s
   end
-  
+
   def self.session_for_year(year)
     ((year + 1) / 2) - 894
   end
@@ -202,7 +202,7 @@ module Utils
     first = ((congress + 894) * 2) - 1
     [first, first + 1]
   end
-  
+
   # map govtrack type to RTC type
   def self.bill_type_for(govtrack_type)
     {
@@ -216,7 +216,7 @@ module Utils
       :sc => 'scres'
     }[govtrack_type.to_sym]
   end
-  
+
   def self.gpo_type_for(bill_type)
     {
       'hr' => 'hr',
@@ -229,7 +229,7 @@ module Utils
       'scres' => 'sconres'
     }[bill_type.to_s]
   end
-  
+
   # adapted from http://www.gpoaccess.gov/bills/glossary.html
   def self.bill_version_name_for(version_code)
     {
@@ -299,26 +299,26 @@ module Utils
       's_p' => "Star (No.) Print of an Amendment"
     }[version_code]
   end
-  
+
   def self.constant_vote_keys
     ["Yea", "Nay", "Not Voting", "Present"]
   end
-  
+
   def self.vote_breakdown_for(voters)
     breakdown = {:total => {}, :party => {}}
-    
-    voters.each do|bioguide_id, voter|      
+
+    voters.each do|bioguide_id, voter|
       party = voter[:voter]['party']
       vote = voter[:vote]
-      
+
       breakdown[:party][party] ||= {}
       breakdown[:party][party][vote] ||= 0
       breakdown[:total][vote] ||= 0
-      
+
       breakdown[:party][party][vote] += 1
       breakdown[:total][vote] += 1
     end
-    
+
     parties = breakdown[:party].keys
     votes = (breakdown[:total].keys + constant_vote_keys).uniq
     votes.each do |vote|
@@ -327,68 +327,68 @@ module Utils
         breakdown[:party][party][vote] ||= 0
       end
     end
-    
+
     breakdown
   end
-  
-  
+
+
   # Used when processing roll call votes the first time.
   # "passage" will also reliably get set in the second half of votes_archive,
   # when it goes back over each bill and looks at its passage votes.
   def self.vote_type_for(roll_type, question)
     case roll_type
-    
+
     # senate only
-    when /cloture/i 
+    when /cloture/i
       "cloture"
-      
+
     # senate only
     when /^On the Nomination$/i
       "nomination"
-    
+
     when /^Guilty or Not Guilty/i
       "impeachment"
-    
+
     when /^On the Resolution of Ratification/i
       "treaty"
-    
+
     when /^On (?:the )?Motion to Recommit/i
       "recommit"
-      
+
     # common
     when /^On Passage/i
       "passage"
-      
+
     # house
     when /^On Motion to Concur/i, /^On Motion to Suspend the Rules and (Agree|Concur|Pass)/i, /^Suspend (?:the )?Rules and (Agree|Concur)/i,
       "passage"
-    
+
     # house
     when /^On Agreeing to the Resolution/i, /^On Agreeing to the Concurrent Resolution/i, /^On Agreeing to the Conference Report/i
       "passage"
-      
+
     # senate
     when /^On the Joint Resolution/i, /^On the Concurrent Resolution/i, /^On the Resolution/i
       "passage"
-    
+
     # house only
     when /^Call of the House$/i
       "quorum"
-    
+
     # house only
     when /^Election of the Speaker$/i
       "leadership"
-    
+
     # various procedural things (and various unstandardized vote desc's that will fall through the cracks)
     else
       "other"
-      
+
     end
   end
-  
+
   def self.bill_from(bill_id)
     type, number, session, code, chamber = bill_fields_from bill_id
-    
+
     bill = Bill.new :bill_id => bill_id
     bill.attributes = {
       bill_type: type,
@@ -397,36 +397,36 @@ module Utils
       code: code,
       chamber: chamber
     }
-    
+
     bill
   end
-  
+
   def self.bill_fields_from(bill_id)
     type = bill_id.gsub /[^a-z]/, ''
     number = bill_id.match(/[a-z]+(\d+)-/)[1].to_i
     session = bill_id.match(/-(\d+)$/)[1].to_i
-    
+
     code = "#{type}#{number}"
     chamber = {'h' => 'house', 's' => 'senate'}[type.first.downcase]
-    
+
     [type, number, session, code, chamber]
   end
-  
+
   def self.amendment_from(amendment_id)
     chamber = {'h' => 'house', 's' => 'senate'}[amendment_id.gsub(/[^a-z]/, '')]
     number = amendment_id.match(/[a-z]+(\d+)-/)[1].to_i
     session = amendment_id.match(/-(\d+)$/)[1].to_i
-    
+
     amendment = Amendment.new :amendment_id => amendment_id
     amendment.attributes = {
       :chamber => chamber,
       :number => number,
       :session => session
     }
-    
+
     amendment
   end
-  
+
   def self.format_bill_code(bill_type, number)
     {
       "hres" => "H. Res.",
@@ -439,32 +439,32 @@ module Utils
       "scres" => "S. Con. Res."
     }[bill_type] + " #{number}"
   end
-  
+
   # fetching
-  
+
   def self.document_for(document, fields)
     attributes = document.attributes.dup
     allowed_keys = fields.map {|f| f.to_s}
-    
+
     # for some reason, the 'sort' here causes more keys to get filtered out than without it
     # without the 'sort', it is broken. I do not know why.
     attributes.keys.sort.each {|key| attributes.delete(key) unless allowed_keys.include?(key)}
-    
+
     attributes
   end
-  
+
   def self.legislator_for(legislator)
     document_for legislator, Legislator.basic_fields
   end
-  
+
   def self.amendment_for(amendment)
     document_for amendment, Amendment.basic_fields
   end
-  
+
   def self.committee_for(committee)
     document_for committee, Committee.basic_fields
   end
-  
+
   # usually referenced in absence of an actual bill object
   def self.bill_for(bill_id)
     if bill_id.is_a?(Bill)
@@ -477,13 +477,13 @@ module Utils
       end
     end
   end
-  
+
   def self.bill_ids_for(text, session)
     matches = text.scan(/((S\.|H\.)(\s?J\.|\s?R\.|\s?Con\.| ?)(\s?Res\.?)*\s?\d+)/i).map {|r| r.first}.uniq.compact
     matches = matches.map {|code| bill_code_to_id code, session}
     matches.uniq
   end
-    
+
   def self.bill_code_to_id(code, session)
     "#{code.gsub(/con/i, "c").tr(" ", "").tr('.', '').downcase}-#{session}"
   end
@@ -527,9 +527,9 @@ module Utils
 
     if a
       pdf_url = a['href']
-      date_results = pdf_url.scan(/\/([^\/]+)\.pdf$/i)
+      date_results = pdf_url.gsub(/(DAILY|WEEKLY)%20/, '').scan(/\/([^\/]+)\.pdf$/i)
     end
-    
+
     if date_results and date_results.any? and date_results.first.any?
       date_str = date_results.first.first
       month, day, year = date_str.split "-"
