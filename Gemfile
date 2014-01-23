@@ -11,8 +11,7 @@ gem 'rubberband', '0.9.5'
 gem 'ruby-hmac', '0.4.0'
 gem 'pony', '1.0.1'
 
-gem 'rack', '1.4.1'
-# gem 'rake', '0.9.2.2'
+gem 'rack'
 
 group :development do
   gem 'sinatra-reloader', '0.5.0'
