@@ -22,7 +22,7 @@ class FloorUpdatesLiveSenate
     doc = Nokogiri::HTML html
 
     unless container = doc.css("div.entry-content").first
-      Report.warning self, "Can't locate title of the floor log, can't go on."
+      Report.warning self, "Can't locate title of the floor log, can't go on.", {html: html}
       return
     end
 
