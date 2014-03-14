@@ -3,6 +3,7 @@ from pysrt import SubRipTime, SubRipItem, SubRipFile
 import json
 import rtc_utils
 import urlparse
+import httplib
 import httplib2
 from datetime import datetime, timedelta
 import time as timey
@@ -70,6 +71,14 @@ def push_to_s3(filename, s3name):
 def get_captions(client_name, clip_id):
     h = httplib2.Http()
     g_url = 'http://%s/JSON.php?clip_id=%s' % ( client_name, clip_id)
+
+    print "Fetching URL: %s" % g_url
+
+    try:
+        response, j = h.request(g_url)
+    except httplib.BadStatusLine as exception:
+        return None
+
     response, j = h.request(g_url)
     dirname = os.getcwd() + "/data/granicus/srt/%s/" % client_name
     filename = dirname + "%s.srt" % clip_id
@@ -144,6 +153,10 @@ def get_clips_for_senate(db, clip_id, congress, duration, year):
     rolls = []
 
     caps = get_captions('floor.senate.gov', clip_id)
+    if caps is None:
+        print "Server error while fetching captions, skipping."
+        return None, None, None, None, None
+
     offset = 0
     for clip_num in range(1, clip_number + 1):
         start = offset
@@ -325,6 +338,10 @@ def get_videos(db, es, client_name, chamber, archive=False, captions=False):
             new_vid['clips'], new_vid['bills'], new_vid['legislator_names'], new_vid['bioguide_ids'], new_vid['rolls'] = get_markers(db, client_name, new_vid['clip_id'], new_vid['session'], chamber)
         elif chamber == 'senate':
             new_vid['clips'], new_vid['bills'], new_vid['legislator_names'], new_vid['bioguide_ids'], new_vid['rolls'] = get_clips_for_senate(db, new_vid['clip_id'], new_vid['session'], new_vid['duration'], dateparse(new_vid['pubdate']).year)
+
+        if new_vid['clips'] is None:
+            print "Couldn't fetch information for video, skipping."
+            continue
 
         #make sure the last clip has a duration
         if new_vid['clips'] and len(new_vid['clips']) > 0:
