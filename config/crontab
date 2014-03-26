@@ -38,13 +38,4 @@
 */2 * * * *  /projects/rtc/shared/cron/task.sh floor_updates_live_senate
 */5 * * * *  /projects/rtc/shared/cron/task.sh floor_updates_live_house
 
-# committee hearings
-0 * * * * /projects/rtc/shared/cron/task.sh committee_hearings_senate
-0 * * * * /projects/rtc/shared/cron/task.sh committee_hearings_house
-
-# upcoming leadership information
-0 * * * * /projects/rtc/shared/cron/task.sh upcoming_senate_daily
-0 * * * * /projects/rtc/shared/cron/task.sh upcoming_house_daily
-
-
 # leave the newline here
