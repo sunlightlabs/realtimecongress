@@ -23,7 +23,7 @@ AWS_ACCESS_KEY_ID = None
 AWS_SECRET_ACCESS_KEY = None
 BUCKET_NAME = 'assets.realtimecongress.org'
 
-def run(db, es, options = {}):
+def run(db, options = {}):
 
 
     if options.has_key('s3'):
@@ -33,15 +33,13 @@ def run(db, es, options = {}):
         AWS_SECRET_ACCESS_KEY = options['s3']['secret']
 
     archive = False
-    captions = False
 
     if options.has_key('archive'): archive = options['archive']
-    if options.has_key('captions'): captions = options['captions']
 
     if options.has_key('senate'):
-        get_videos(db, es, 'floor.senate.gov', 'senate', archive, captions)
+        get_videos(db, 'floor.senate.gov', 'senate', archive)
     else:
-        get_videos(db, es, 'houselive.gov', 'house', archive, captions )
+        get_videos(db, 'houselive.gov', 'house', archive)
 
     if PARSING_ERRORS:
         db.note("Errors while parsing timestamps", {'errors': PARSING_ERRORS})
@@ -290,7 +288,7 @@ def try_key(data, key, name, new_data):
     else:
         return new_data
 
-def get_videos(db, es, client_name, chamber, archive=False, captions=False):
+def get_videos(db, client_name, chamber, archive=False):
     api_url = API_PREFIX + client_name + '?type=video'
     data = '{ "sort": [ {"datetime": {"order": "desc" }} ]  }'
     if archive:
@@ -347,67 +345,14 @@ def get_videos(db, es, client_name, chamber, archive=False, captions=False):
         if new_vid['clips'] and len(new_vid['clips']) > 0:
             new_vid['clips'][-1]['duration'] = new_vid['duration'] - new_vid['clips'][-1]['offset']
 
-        if captions:
-            new_vid['captions'], new_vid['caption_srt_file'] = get_captions(client_name, new_vid['clip_id'])
-
         db['videos'].save(new_vid)
         vcount += 1
 
         #index clip objects in elastic search
 
-        if captions and new_vid.has_key('clips') and new_vid['clips'] is not None and len(new_vid['clips']) > 0:
-            for c in new_vid['clips']:
-                clip = {
-                        'id': "%s-%s" % (new_vid['video_id'], new_vid['clips'].index(c)),
-                        'video_id': new_vid['video_id'],
-                        'video_clip_id': new_vid['clip_id'],
-                        'offset': c['offset'],
-                        'duration': c['duration'],
-                        'legislative_day': new_vid['legislative_day'],
-                        'pubdate': new_vid['pubdate'],
-                        'clip_urls': new_vid['clip_urls']
-                }
-                clip = try_key(c, 'legislator_names', 'legislator_names', clip)
-                clip = try_key(c, 'rolls', 'rolls', clip)
-                clip = try_key(c, 'events', 'events', clip)
-                clip = try_key(c, 'bills', 'bills', clip)
-                clip = try_key(c, 'bioguide_ids', 'bioguide_ids', clip)
-
-                if new_vid.has_key('caption_srt_file'):
-                    clip['srt_link'] = new_vid['caption_srt_file'],
-
-                if new_vid.has_key('captions'):
-                    clip['captions'] = get_clip_captions(new_vid, c, c == new_vid['clips'][0] ) #pass a boolean if this is the first clip
-
-                resp = es.save(clip, 'clips', clip['id'])
-
-                if resp['ok'] == False:
-                    PARSING_ERRORS.append('Could not successfully save to elasticsearch - video_id: %s' % resp['_id'])
         print "Successfully processed %s" % new_vid['clip_id']
 
-    es.connection.indices.refresh()
-
     db.success("Updated or created %s legislative days for %s video" % (client_name, vcount))
-
-def get_clip_captions(video, clip, first_clip):
-
-    captions = []
-
-    for cap in video['captions']:
-        c_time = float(cap['time'])
-        start = float(clip['offset'])
-        end = float(clip['duration']) + start
-
-        if (c_time >= start and c_time < end) or (c_time < start and first_clip ):  # need the second condition to snag captions that begin before the first 'offset'
-            captions.append(cap)
-
-    #turn captions into one large string for elastic search
-    cap_str = ""
-    for cap in captions:
-        cap_str += cap['text'] + ' '
-
-    return cap_str
-
 
 def query_api(db, api_url, data=None):
 

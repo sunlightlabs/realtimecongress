@@ -1,10 +1,10 @@
 module Queryable
-  
+
   def self.fields_for(model, params)
     return nil if params[:fields].blank?
-    
+
     sections = params[:fields].split ','
-    
+
     if sections.include?('basic')
       sections.delete 'basic' # does nothing if not present
       sections += model.basic_fields.map {|field| field.to_s}
@@ -12,21 +12,21 @@ module Queryable
 
     sections.uniq
   end
-  
+
   def self.conditions_for(model, params)
     conditions = {}
-    
+
     params.each do |key, value|
-      
+
       # if there's a special operator (>, <, !, __ne, etc.), strip it off the key
       operators = {
-        ">" => :gte, 
-        "<" => :lte, 
+        ">" => :gte,
+        "<" => :lte,
         "!" => :ne,
-        "__gt" => :gt, 
+        "__gt" => :gt,
         "__lt" => :lt,
         "__gte" => :gte,
-        "__lte" => :lte, 
+        "__lte" => :lte,
         "__ne" => :ne,
         "__match" => :match,
         "__match_s" => :match_s,
@@ -35,31 +35,31 @@ module Queryable
         "__nin" => :nin,
         "__all" => :all
       }
-      
+
       operator = nil
       if key =~ /^(.*?)(#{operators.keys.join "|"})$/
         key = $1
         operator = operators[$2]
       end
-      
+
       if !magic_fields.include? key.to_sym
-        
+
         # transform 'value' to the correct type for this key if needed
         if [:nin, :in, :all].include?(operator)
           value = value.split("|").map {|v| value_for v, model.fields[key]}
         else
           value = value_for value, model.fields[key]
         end
-        
+
 #         puts
 #         puts "value: #{value.inspect} (#{value.class})"
-        
+
         if operator
           if conditions[key].nil? or conditions[key].is_a?(Hash)
             conditions[key] ||= {}
-            
+
             if [:lt, :lte, :gt, :gte, :ne, :in, :nin, :all, :exists].include?(operator)
-              conditions[key]["$#{operator}"] = value 
+              conditions[key]["$#{operator}"] = value
             elsif operator == :match
               conditions[key] = regex_for value
             elsif operator == :match_s
@@ -73,10 +73,10 @@ module Queryable
           # override anything that may already be there
           conditions[key] = value
         end
-        
+
       end
     end
-    
+
     if params[:search].present? and model.search_fields
       conditions["$or"] = model.search_fields.map do |key|
         {key => regex_for(params[:search])}
@@ -85,7 +85,7 @@ module Queryable
 
     conditions
   end
-  
+
   def self.order_for(model, params)
     key = nil
     if params[:order].present?
@@ -93,27 +93,26 @@ module Queryable
     else
       key = model.default_order
     end
-    
+
     sort = nil
     if params[:sort].present? and [:desc, :asc].include?(params[:sort].downcase.to_sym)
       sort = params[:sort].downcase.to_sym
     else
       sort = :desc
     end
-    
+
     [[key, sort]]
   end
 
   def self.attributes_for(document, fields)
     attributes = document.attributes
 
-    # 'indexed' is a special field used to help sync docs between mongodb and elasticsearch
-    exclude_fields = ['_id', 'created_at', 'updated_at', 'indexed']
+    exclude_fields = ['_id', 'created_at', 'updated_at']
 
     exclude_fields.each {|key| attributes.delete(key) unless (fields || []).include?(key.to_s)}
     attributes
   end
-  
+
   def self.documents_for(model, criteria, fields)
     documents = criteria.to_a
     documents.map {|document| attributes_for document, fields}
@@ -122,7 +121,7 @@ module Queryable
   def self.results_for(model, criteria, documents, pagination)
     count = criteria.count
     key = model.to_s.underscore.pluralize
-    
+
     {
       key => documents,
       count: count,
@@ -133,10 +132,10 @@ module Queryable
       }
     }
   end
-  
+
   def self.explain_for(model, conditions, fields, order, pagination)
     criteria = criteria_for model, conditions, fields, order, pagination
-    
+
     {
       conditions: conditions,
       fields: fields,
@@ -149,37 +148,37 @@ module Queryable
       }
     }
   end
-  
+
   def self.criteria_for(model, conditions, fields, order, pagination)
     skip = pagination[:per_page] * (pagination[:page]-1)
     limit = pagination[:per_page]
-    
+
     model.where(conditions).only(fields).order_by(order).skip(skip).limit(limit)
   end
-  
+
   def self.pagination_for(params)
     default_per_page = 20
     max_per_page = 50
     max_page = 200000000 # let's keep it realistic
-    
+
     # rein in per_page to somewhere between 1 and the max
     per_page = (params[:per_page] || default_per_page).to_i
     per_page = default_per_page if per_page <= 0
     per_page = max_per_page if per_page > max_per_page
-    
+
     # valid page number, please
     page = (params[:page] || 1).to_i
     page = 1 if page <= 0 or page > max_page
-    
+
     {per_page: per_page, page: page}
   end
-  
+
   def self.regex_for(value, i = true)
     regex_value = value.to_s.dup
     %w{+ ? . * ^ $ ( ) [ ] { } | \ }.each {|char| regex_value.gsub! char, "\\#{char}"}
     i ? /#{regex_value}/i : /#{regex_value}/
   end
-  
+
   def self.value_for(value, field)
     # type overridden in model
     if field
@@ -192,7 +191,7 @@ module Queryable
       else
         value
       end
-      
+
     # try to autodetect type
     else
       if ["true", "false"].include? value # boolean
@@ -206,26 +205,26 @@ module Queryable
       end
     end
   end
-  
+
   def self.original_magic_fields
     [
       :search
     ]
   end
-  
+
   def self.add_magic_fields(fields)
     @extra_magic_fields = fields
   end
-  
+
   def self.magic_fields
     (@extra_magic_fields || []) + original_magic_fields
   end
-  
+
   # inside a queryable model, do:
   # include Queryable::Model
   module Model
     module ClassMethods
-      
+
       def default_order(order = nil)
         if order
           @default_order = order
@@ -233,7 +232,7 @@ module Queryable
           @default_order
         end
       end
-      
+
       def basic_fields(*fields)
         if fields.any?
           @basic_fields = fields
@@ -241,7 +240,7 @@ module Queryable
           @basic_fields
         end
       end
-      
+
       def search_fields(*fields)
         if fields.any?
           @search_fields = fields
@@ -249,15 +248,15 @@ module Queryable
           @search_fields
         end
       end
-      
+
       def queryable?
         true
       end
     end
-    
+
     def self.included(base)
       base.extend ClassMethods
     end
   end
-  
+
 end

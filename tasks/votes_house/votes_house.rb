@@ -60,7 +60,6 @@ class VotesHouse
     count = 0
 
     download_failures = []
-    es_failures = []
     missing_bioguide_ids = []
 
     legislators = {}

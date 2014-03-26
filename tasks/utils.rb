@@ -5,45 +5,6 @@ require 'yajl'
 
 module Utils
 
-  # document is a hash,
-  # collection is a mapping (e.g. 'bills'),
-  # id is a string unique to the collection
-  # bulk_container is an array, will use it to persist a batch for bulk indexing
-  #
-  # if given a bulk_size, will use it to determine when to batch and empty the container
-  def self.es_batch!(collection, id, document, batcher, options = {})
-    # turn off batching
-    options[:batch_size] ||= 1
-
-    # batch the document
-    batcher << [id, document]
-
-    # if container's full, index them all
-    if batcher.size >= options[:batch_size].to_i
-      es_flush! collection, batcher
-    end
-  end
-
-  # indexes a document immediately
-  def self.es_store!(collection, id, document)
-    Searchable.client.index document, id: id, type: collection
-  end
-
-  # force a batch index of the container (useful to close out a batch)
-  def self.es_flush!(collection, batcher)
-    return if batcher.empty?
-
-    puts "\n-- Batch indexing #{batcher.size} documents into '#{collection}' --\n\n"
-
-    Searchable.client.bulk do |client|
-      batcher.each do |id, document|
-        client.index document, id: id, type: collection
-      end
-    end
-
-    batcher.clear # reset
-  end
-
   def self.curl(url, destination = nil)
     body = begin
       curl = Curl::Easy.new url

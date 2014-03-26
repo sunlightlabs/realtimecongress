@@ -25,15 +25,15 @@ class Database():
         Files an unread report for the task runner to read following the conclusion of the task.
         Use the success, warning, and failure methods instead of this method directly.
         """
-        
+
         document = {
-          'status': status, 
-          'read': False, 
-          'message': str(message), 
-          'source': self.task_name, 
+          'status': status,
+          'read': False,
+          'message': str(message),
+          'source': self.task_name,
           'created_at': datetime.datetime.now()
         }
-        
+
         if isinstance(message, Exception):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             backtrace = traceback.format_list(traceback.extract_tb(exc_traceback))
@@ -42,44 +42,44 @@ class Database():
               'type': str(exc_type),
               'message': str(exc_value)
             }
-        
+
         if additional:
             document.update(additional)
-         
+
         self.db['reports'].insert(document)
-    
+
     def success(self, message, additional=None):
         self.report("SUCCESS", message, additional)
-        
+
     def warning(self, message, additional=None):
         self.report("WARNING", message, additional)
-    
+
     def note(self, message, additional=None):
         self.report("NOTE", message, additional)
-    
+
     def failure(self, message, additional=None):
         self.report("FAILURE", message, additional)
-        
+
     def get_or_initialize(self, collection, criteria):
         """
-        If the document (identified by the critiera dict) exists, update its 
+        If the document (identified by the critiera dict) exists, update its
         updated_at timestamp and return it.
-        If the document does not exist, start a new one with the attributes in 
+        If the document does not exist, start a new one with the attributes in
         criteria, with both created_at and updated_at timestamps.
         """
         document = None
         documents = self.db[collection].find(criteria)
-        
+
         if documents.count() > 0:
           document = documents[0]
         else:
           document = criteria
           document['created_at'] = datetime.datetime.now()
-          
+
         document['updated_at'] = datetime.datetime.now()
-        
+
         return document
-    
+
     def get_or_create(self, collection, criteria, info):
         """
         Performs a get_or_initialize by the criteria in the given collection,
@@ -88,29 +88,13 @@ class Database():
         document = self.get_or_initialize(collection, criteria)
         document.update(info)
         self.db[collection].save(document)
-    
+
     def __getitem__(self, collection):
         """
         Passes the collection reference right through to the underlying connection.
         """
         return self.db[collection]
 
-
-class ElasticSearch():
-    
-    def __init__(self, host, port, index):
-        """
-        Initialize ElasticSearch connection.
-        host: hostname of elasticsearch daemon
-        port: port of elasticsearch daemon
-        index: name of elasticsearch index
-        """
-
-        self.connection = pyes.ES(server=("http", host, port), timeout=180)
-        self.index = index
-    
-    def save(self, data, typ, o_id):
-        return self.connection.index(data, self.index, typ, o_id)
 
 # set global HTTP timeouts to 10 seconds
 import socket
@@ -124,12 +108,6 @@ db_host = mongo['defaults']['sessions']['default']['hosts'][0]
 db_name = mongo['defaults']['sessions']['default']['database']
 db = Database(task_name, db_host, db_name)
 
-es_host = options['elastic_search']['host']
-es_port = options['elastic_search']['port']
-es_index = options['elastic_search']['index']
-es = ElasticSearch(es_host, es_port, es_index)
-
-
 args = sys.argv[2:]
 for arg in args:
   key, value = arg.split('=')
@@ -141,7 +119,7 @@ for arg in args:
 try:
     sys.path.append("tasks")
     sys.path.append("tasks/%s" % task_name)
-    __import__(task_name).run(db, es, options)
+    __import__(task_name).run(db, options)
 
 except Exception as exception:
     db.failure(exception)

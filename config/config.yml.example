@@ -5,15 +5,10 @@ opencrs_api_key: "cc5a9d23-1b4c-4532-98be-6235ffb19f20"
   :shared_secret:
   :api_name: realtimecongress
 
-elastic_search:
-  host: localhost
-  port: 9200
-  index: rtc
+s3:
+    secret:
+    key:
 
-s3: 
-    secret: 
-    key: 
-  
 debug: false
 
 log_file: /dev/null
@@ -34,5 +29,5 @@ log_file: /dev/null
 
 # to send emails to owners of specific tasks
 :task_owners:
-  # :bills_archive: 
+  # :bills_archive:
   #   - email@example.com

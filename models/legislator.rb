@@ -8,13 +8,7 @@ class Legislator
   index chamber: 1
   index thomas_id: 1
 
-  
-  include ::Queryable::Model
-
-  default_order :created_at
-  basic_fields :govtrack_id, :bioguide_id,
-      :title, :first_name, :nickname, :last_name, :name_suffix, 
-      :state, :party, :chamber, :district
-
-  search_fields :first_name, :last_name, :middle_name, :nickname
+  def self.basic_fields
+    [:govtrack_id, :bioguide_id, :title, :first_name, :nickname, :last_name, :name_suffix, :state, :party, :chamber, :district]
+  end
 end
