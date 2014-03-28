@@ -67,7 +67,14 @@ module Utils
         curl.body_str
       end
 
-      body = Yajl::Parser.parse(body) if options[:json]
+      if body and options[:json]
+        begin
+          body = Yajl::Parser.parse(body)
+        rescue Yajl::ParseError => exc
+          return nil
+        end
+      end
+
 
       # returns true or false if a destination is given
       if options[:destination]
