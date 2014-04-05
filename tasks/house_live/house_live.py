@@ -278,7 +278,7 @@ def get_markers(db, client_name, clip_id, congress, chamber):
         return (clips, bills, legislators, bioguide_ids, rolls)
 
     else:
-        db.warning('There are no markers for video id: %s' % clip_id)
+        db.note('There are no markers for video id: %s' % clip_id)
         return (None, None, None, None, None)
 
 def try_key(data, key, name, new_data):
