@@ -11,8 +11,12 @@ repo = "git://github.com/sunlightlabs/realtimecongress.git"
 
 home = "/projects/rtc"
 shared_path = "%s/shared" % home
-version_path = "%s/versions/%s" % (home, time.strftime("%Y%m%d%H%M%S"))
+versions_path = "%s/versions" % home
+version_path = "%s/%s" % (versions_path, time.strftime("%Y%m%d%H%M%S"))
 current_path = "%s/current" % home
+
+# how many old releases to be kept at deploy-time
+keep = 10
 
 
 ## can be run only as part of deploy
@@ -36,8 +40,15 @@ def create_indexes():
 def make_current():
   run('rm -f %s && ln -s %s %s' % (current_path, version_path, current_path))
 
-def prune_releases():
-  pass
+def cleanup():
+  versions = run("ls -x %s" % versions_path).split()
+  # destroy all but the most recent X
+  destroy = versions[:-keep]
+
+  for version in destroy:
+    command = "rm -rf %s/%s" % (versions_path, version)
+    run(command)
+
 
 ## can be run on their own
 
@@ -65,3 +76,4 @@ def deploy():
   execute(make_current)
   execute(set_crontab)
   execute(restart)
+  execute(cleanup)
