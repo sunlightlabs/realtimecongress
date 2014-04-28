@@ -2,13 +2,9 @@
   :shared_secret:
   :api_name: realtimecongress
 
-debug: false
-
 :email:
-  :via: :smtp
-  :to:
-    -
   :from:
+  :via: :smtp
   :via_options:
     :address:
     :port:
@@ -17,8 +13,3 @@ debug: false
     :authentication: plain
     :domain:
     :enable_starttls_auto: false
-
-# to send emails to owners of specific tasks
-:task_owners:
-  # :bills_archive:
-  #   - email@example.com
