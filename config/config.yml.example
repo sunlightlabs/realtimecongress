@@ -1,15 +1,8 @@
-# used only in house_live
 :services:
   :shared_secret:
   :api_name: realtimecongress
 
-s3:
-    secret:
-    key:
-
 debug: false
-
-log_file: /dev/null
 
 :email:
   :via: :smtp

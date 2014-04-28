@@ -9,7 +9,8 @@ task :environment do
 end
 
 # does not hinge on the environment, test_helper loads it itself
-task :default => :test
+task default: :test
+
 task :test do
   responses = Dir.glob("test/**/*_test.rb").map do |file|
     puts "\nRunning #{file}:\n"
@@ -41,7 +42,7 @@ namespace :development do
 end
 
 desc "Run through each model and create all indexes"
-task :create_indexes => :environment do
+task create_indexes: :environment do
   begin
     models = Dir.glob('models/*.rb').map do |file|
       File.basename(file, File.extname(file)).camelize.constantize
@@ -62,7 +63,7 @@ task :create_indexes => :environment do
 end
 
 desc "Set the crontab in place for this environment"
-task :set_crontab => :environment do
+task set_crontab: :environment do
   current_path = ENV['current_path']
 
   if current_path.blank?
@@ -79,7 +80,7 @@ task :set_crontab => :environment do
 end
 
 desc "Disable/clear the crontab for this environment"
-task :disable_crontab => :environment do
+task disable_crontab: :environment do
   if system("echo | crontab")
     puts "Successfully disabled crontab."
   else
@@ -112,8 +113,6 @@ def run_task(name)
   begin
     if File.exist? "tasks/#{name}/#{name}.rb"
       run_ruby name
-    elsif File.exist? "tasks/#{name}/#{name}.py"
-      run_python name
     else
       raise Exception.new "Couldn't locate task file"
     end
@@ -153,17 +152,13 @@ def run_ruby(name)
   name.camelize.constantize.run options
 end
 
-def run_python(name)
-  system "python tasks/runner.py #{name} #{ARGV[1..-1].join ' '}"
-end
-
 def email(report, exception = nil)
   if config[:email][:to] and config[:email][:to].any?
     begin
       if report.is_a?(Report)
-        Pony.mail config[:email].merge(:subject => email_subject(report), :body => email_body(report), :to => email_recipients_for(report))
+        Pony.mail config[:email].merge(subject: email_subject(report), body: email_body(report), to: email_recipients_for(report))
       else
-        Pony.mail config[:email].merge(:subject => report, :body => (exception ? exception_message(exception) : report))
+        Pony.mail config[:email].merge(subject: report, body: (exception ? exception_message(exception) : report))
       end
     rescue Errno::ECONNREFUSED
       puts "Couldn't email report, connection refused! Check system settings."
@@ -173,13 +168,7 @@ end
 
 def email_recipients_for(report)
   task = report.source.underscore.to_sym
-
-  recipients = config[:email][:to].dup # always begin with master recipients
-
-  if config[:task_owners] and config[:task_owners][task]
-    recipients += config[:task_owners][task]
-  end
-
+  recipients = config[:email][:to].dup
   recipients.uniq
 end
 

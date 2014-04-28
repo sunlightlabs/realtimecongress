@@ -1,4 +1,3 @@
-require 'sunlight'
 
 class Legislators
 

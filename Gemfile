@@ -22,6 +22,3 @@ end
 gem 'curb', '0.8.1'
 gem 'nokogiri', '1.5.5'
 gem 'httparty', '0.7.8'
-gem 'feedzirra', '0.2.0rc2'
-gem 'sunlight'
-gem 'docsplit'
