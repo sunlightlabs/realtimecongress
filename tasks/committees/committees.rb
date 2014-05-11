@@ -14,7 +14,7 @@ class Committees
       FileUtils.mkdir_p "data/unitedstates"
       FileUtils.rm_rf "data/unitedstates/congress-legislators"
       unless system "git clone git://github.com/unitedstates/congress-legislators.git data/unitedstates/congress-legislators"
-        Report.error self, "Couldn't clone legislator data from unitedstates."
+        Report.failure self, "Couldn't clone legislator data from unitedstates."
         return false
       end
       puts
