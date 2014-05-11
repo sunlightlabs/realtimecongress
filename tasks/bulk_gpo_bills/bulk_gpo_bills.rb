@@ -4,16 +4,16 @@ require 'curb'
 class BulkGpoBills
 
   # Maintains a local copy of bill data from GPO's FDSys system.
-  # 
+  #
   # By default, looks through the current year's sitemap, and re/downloads all bills updated in the last 3 days.
   # Options can be passed in to archive whole years, or use cached data.
-  # 
+  #
   # options:
   #   year: archive a year of data, don't limit it to 3 days
   #   cache: use cached data, don't re-download.
   #
   #   limit: only download a certain number of bills (stop short, useful for testing/development)
-  #   bill_version_id: only download a specific bill version. ignores other options. 
+  #   bill_version_id: only download a specific bill version. ignores other options.
   #     (examples: hr3590-111-ih, sres32-111-enr)
 
   def self.run(options = {})
@@ -51,7 +51,7 @@ class BulkGpoBills
 
       years.each do |year|
         unless sitemap_doc = sitemap_doc_for(year, options)
-          Report.warning self, "Couldn't load sitemap for #{year}"
+          Report.note self, "Couldn't load sitemap for #{year}"
           return
         end
 
@@ -73,7 +73,7 @@ class BulkGpoBills
 
     count = 0
     failures = []
-    
+
     bill_versions.each do |gpo_type, number, session, version_code|
       bill_type = gpo_type.sub 'con', 'c'
       dest_prefix = "data/gpo/BILLS/#{session}/#{bill_type}/#{bill_type}#{number}-#{session}-#{version_code}"
@@ -107,7 +107,7 @@ class BulkGpoBills
 
     # only alert if there are more than a handful of failures, their service has occasional hiccups
     if failures.any? and failures.size > 10
-      Report.warning self, "Failed to download #{failures.size} files while syncing against GPOs BILLS collection for #{years.join ", "}", :failures => failures
+      Report.note self, "Failed to download #{failures.size} files while syncing against GPOs BILLS collection for #{years.join ", "}", :failures => failures
     end
 
     if options[:bill_version_id]

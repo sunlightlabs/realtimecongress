@@ -15,14 +15,14 @@ class FloorUpdatesLiveSenate
       url << "?break_cache=#{Time.now.to_i}" unless allow_cache?
       html = Utils.curl url
     rescue Timeout::Error, Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::ENETUNREACH
-      Report.warning self, "Network error on fetching the floor log, can't go on."
+      Report.note self, "Network error on fetching the floor log, can't go on."
       return
     end
 
     doc = Nokogiri::HTML html
 
     unless container = doc.css("div.entry-content").first
-      Report.warning self, "Can't locate title of the floor log, can't go on.", {html: html}
+      Report.note self, "Can't locate title of the floor log, can't go on.", {html: html}
       return
     end
 
